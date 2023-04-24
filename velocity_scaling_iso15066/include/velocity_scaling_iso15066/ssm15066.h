@@ -69,7 +69,7 @@ public:
   double computeScaling(const Eigen::VectorXd& q,
                         const Eigen::VectorXd& dq);
   double getDistanceFromClosestPoint();
-  std::vector<std::pair<double,Eigen::VectorXd>> computeScalesVectors(const Eigen::VectorXd& q, const Eigen::VectorXd& dq);
+  std::vector<std::pair<double,Eigen::Vector3d>> computeScalesVectors(const Eigen::VectorXd& q, const Eigen::VectorXd& dq);
 };
 
 class ProbabilisticSSM: public DeterministicSSM
@@ -154,16 +154,15 @@ inline double DeterministicSSM::computeScaling(const Eigen::VectorXd& q,
   return s_ref_;
 }
 
-inline std::vector<std::pair<double,Eigen::VectorXd>> DeterministicSSM::computeScalesVectors(const Eigen::VectorXd& q,
+inline std::vector<std::pair<double,Eigen::Vector3d>> DeterministicSSM::computeScalesVectors(const Eigen::VectorXd& q,
                                         const Eigen::VectorXd& dq)
 {
-  std::vector<std::pair<double,Eigen::VectorXd>> scale_vects;
-  for (int i=0;i<q.size();i++) scale_vects.push_back(std::pair<double,Eigen::VectorXd>(1.0,Eigen::VectorXd::Zero(q.size())));
+  std::vector<std::pair<double,Eigen::Vector3d>> scale_vects;
+  for (int i=0;i<int(q.size())*2-1;i++) scale_vects.push_back(std::pair<double,Eigen::VectorXd>(1.0,Eigen::Vector3d::Zero()));
   if (pc_in_b_.cols()==0) {
     return scale_vects;
   }
   Tbl_=chain_->getTransformations(q);
-
   vl_in_b_=chain_->getTwist(q,dq);
 
   s_ref_=1.0;
@@ -192,7 +191,7 @@ inline std::vector<std::pair<double,Eigen::VectorXd>> DeterministicSSM::computeS
       }
       if (s_ref_lc_<scale_vects[il].first) {
         scale_vects[il].first = s_ref_lc_;
-        scale_vects[il].second = d_lc_in_b_.normalized();
+        scale_vects[il].second = d_lc_in_b_/distance_;
       }
     }
   }
