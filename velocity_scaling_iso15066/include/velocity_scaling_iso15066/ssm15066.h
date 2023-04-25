@@ -173,11 +173,13 @@ inline std::vector<std::pair<double,Eigen::Vector3d>> DeterministicSSM::computeS
                                         const Eigen::VectorXd& dq)
 {
   std::vector<std::pair<double,Eigen::Vector3d>> scale_vects;
-  for (int i=0;i<int(q.size())*2-1;i++) scale_vects.push_back(std::pair<double,Eigen::VectorXd>(1.0,Eigen::Vector3d::Zero()));
+
+  Tbl_=chain_->getTransformations(q);
+  for (int i=0;i<Tbl_.size();i++) scale_vects.push_back(std::pair<double,Eigen::VectorXd>(1.0,Eigen::Vector3d::Zero()));
   if (pc_in_b_.cols()==0) {
     return scale_vects;
   }
-  Tbl_=chain_->getTransformations(q);
+
   vl_in_b_=chain_->getTwist(q,dq);
 
   s_ref_=1.0;
