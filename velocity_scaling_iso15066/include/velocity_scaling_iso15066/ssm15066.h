@@ -70,6 +70,7 @@ public:
                         const Eigen::VectorXd& dq);
   double getDistanceFromClosestPoint();
   std::vector<std::pair<double,Eigen::Vector3d>> computeScalesVectors(const Eigen::VectorXd& q, const Eigen::VectorXd& dq);
+  std::vector<std::vector<std::pair<double,Eigen::Vector3d>>> computeMoreScalesVectors(const Eigen::VectorXd& q, const Eigen::VectorXd& dq);
 };
 
 class ProbabilisticSSM: public DeterministicSSM
@@ -211,6 +212,54 @@ inline std::vector<std::pair<double,Eigen::Vector3d>> DeterministicSSM::computeS
         scale_vects[il].second = d_lc_in_b_/distance_;
       }
     }
+  }
+  return scale_vects;
+}
+
+inline std::vector<std::vector<std::pair<double,Eigen::Vector3d>>> DeterministicSSM::computeMoreScalesVectors(const Eigen::VectorXd& q,
+                                        const Eigen::VectorXd& dq)
+{
+  std::vector<std::vector<std::pair<double,Eigen::Vector3d>>> scale_vects;
+  Tbl_=chain_->getTransformations(q);
+  if (pc_in_b_.cols()==0) {
+    for (int i=0;i<Tbl_.size();i++) {
+      std::vector<std::pair<double,Eigen::Vector3d>> tmp_vec;
+      tmp_vec.emplace_back(1.0,Eigen::Vector3d::Zero());
+      scale_vects.push_back(tmp_vec);
+    }
+    return scale_vects;
+  }
+
+  vl_in_b_=chain_->getTwist(q,dq);
+
+  s_ref_=1.0;
+  dist_from_closest_=std::numeric_limits<double>::infinity();
+  for (size_t il=0;il<Tbl_.size();il++)
+  {
+    std::vector<std::pair<double,Eigen::Vector3d>> scale_vects_per_joint;
+    for (Eigen::Index ic=0;ic<pc_in_b_.cols();ic++)
+    {
+      d_lc_in_b_=pc_in_b_.col(ic)-Tbl_.at(il).translation();
+      distance_=d_lc_in_b_.norm();
+      if (distance_<self_distance_)
+        continue;
+      tangential_speed_=((vl_in_b_.at(il).block(0,0,3,1)).dot(d_lc_in_b_))/distance_;
+      if (tangential_speed_<=0)  // robot is going away
+      {
+        s_ref_lc_=1.0;
+      }
+      else if (distance_>min_distance_)
+      {
+        vmax_=std::sqrt(term1_+2.0*max_cart_acc_*distance_)-dist_dec_;
+        s_ref_lc_=vmax_/tangential_speed_;  // no division by 0
+      }
+      else  //distance<=min_distance
+      {
+        s_ref_lc_ = 0;
+      }
+      scale_vects_per_joint.emplace_back(s_ref_lc_,d_lc_in_b_/distance_);
+    }
+    scale_vects.push_back(scale_vects_per_joint);
   }
   return scale_vects;
 }
